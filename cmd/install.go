@@ -22,51 +22,36 @@ THE SOFTWARE.
 package cmd
 
 import (
-	"archive/zip"
 	"fmt"
-	"io"
-	"net/http"
-	"os"
 	"path/filepath"
-	"strings"
+	"sync"
 
-	"github.com/goccy/go-yaml"
+	"github.com/hadley31/cs2pm/util"
 	"github.com/spf13/cobra"
 )
 
 // installCmd represents the install command
 var installCmd = &cobra.Command{
 	Use:   "install",
-	Short: "Installs a command by name",
+	Short: "Installs plugins from a registry file",
 	Long:  ``,
 	Run: func(cmd *cobra.Command, args []string) {
-		if len(args) == 0 {
-			fmt.Println("Please provide a plugin to install")
-			os.Exit(1)
-		}
-
-		plugin := args[0]
 		dest := cmd.Flag("dir").Value.String()
 
-		pluginConfig, err := readYamlFile(fmt.Sprintf("%s.yaml", plugin))
+		plugins, err := util.ReadYamlFile("cs2pm.yaml")
 
 		if err != nil {
-			fmt.Println("Error reading plugin.yaml file:", err)
-			os.Exit(1)
+			panic(err)
 		}
 
-		extractDir := filepath.Join(dest, pluginConfig.ExtractPrefix)
+		wg := &sync.WaitGroup{}
 
-		fmt.Printf("Installing plugin %s\n", pluginConfig.Name)
-
-		tempFile, err := downloadPlugin(pluginConfig.DownloadUrl)
-
-		if err != nil {
-			fmt.Println("Error downloading plugin:", err)
-			os.Exit(1)
+		for _, config := range plugins.Plugins {
+			wg.Add(1)
+			installPlugin(&config, dest, wg)
 		}
 
-		unzipPlugin(tempFile, extractDir)
+		wg.Wait()
 	},
 }
 
@@ -76,98 +61,18 @@ func init() {
 	installCmd.Flags().StringP("dir", "d", "", "Directory to install the plugin to")
 }
 
-type PluginConfig struct {
-	Name          string
-	Description   string
-	DownloadUrl   string `yaml:"downloadUrl"`
-	ExtractPrefix string `yaml:"extractPrefix"`
-	Uninstall     struct {
-		Files       []string
-		Directories []string
-	}
-}
+func installPlugin(config *util.PluginConfig, dest string, wg *sync.WaitGroup) {
+	defer wg.Done()
 
-func readYamlFile(yamlFilePath string) (*PluginConfig, error) {
-	yamlFile, err := os.ReadFile(yamlFilePath)
-	if err != nil {
-		return nil, err
-	}
+	fmt.Printf("Installing plugin %s\n", config.Name)
 
-	v := PluginConfig{}
-	if err := yaml.Unmarshal(yamlFile, &v); err != nil {
-		return nil, err
-	}
+	extractDir := filepath.Join(dest, config.ExtractPrefix)
 
-	return &v, nil
-}
+	tempFile, err := util.DownloadPlugin(config.DownloadUrl)
 
-func downloadPlugin(url string) (string, error) {
-	// Download the plugin from the URL
-	resp, err := http.Get(url)
-	if err != nil {
-		fmt.Println("Error downloading plugin:", err)
-		return "", err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("error downloading plugin from %s. Status code: %s", url, resp.Status)
-	}
-
-	// Create the file
-	out, err := os.CreateTemp("", "cs2pm-plugin-")
-	if err != nil {
-		fmt.Printf("err: %s", err)
-	}
-	defer out.Close()
-
-	// Write the body to file
-	_, err = io.Copy(out, resp.Body)
-	if err != nil {
-		fmt.Printf("err: %s", err)
-	}
-
-	return out.Name(), nil
-}
-
-func unzipPlugin(tempFilePath string, dest string) {
-	// Unzip the plugin
-	archive, err := zip.OpenReader(tempFilePath)
 	if err != nil {
 		panic(err)
 	}
-	defer archive.Close()
 
-	for _, f := range archive.File {
-		filePath := filepath.Join(dest, f.Name)
-
-		if !strings.HasPrefix(filePath, filepath.Clean(dest)+string(os.PathSeparator)) {
-			return
-		}
-		if f.FileInfo().IsDir() {
-			os.MkdirAll(filePath, os.ModePerm)
-			continue
-		}
-
-		if err := os.MkdirAll(filepath.Dir(filePath), os.ModePerm); err != nil {
-			panic(err)
-		}
-
-		dstFile, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
-		if err != nil {
-			panic(err)
-		}
-
-		fileInArchive, err := f.Open()
-		if err != nil {
-			panic(err)
-		}
-
-		if _, err := io.Copy(dstFile, fileInArchive); err != nil {
-			panic(err)
-		}
-
-		dstFile.Close()
-		fileInArchive.Close()
-	}
+	util.UnzipPlugin(tempFile, extractDir)
 }

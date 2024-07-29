@@ -25,44 +25,33 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 
+	"github.com/hadley31/cs2pm/util"
 	"github.com/spf13/cobra"
 )
 
 // uninstallCmd represents the uninstall command
 var uninstallCmd = &cobra.Command{
 	Use:   "uninstall",
-	Short: "Uninstalls a command by name",
+	Short: "Uninstalls plugins from a registry file",
 	Long:  ``,
 	Run: func(cmd *cobra.Command, args []string) {
-		if len(args) == 0 {
-			fmt.Println("Please provide a plugin to install")
-			os.Exit(1)
-		}
-
-		plugin := args[0]
 		dest := cmd.Flag("dir").Value.String()
-
-		pluginConfig, err := readYamlFile(fmt.Sprintf("%s.yaml", plugin))
+		plugins, err := util.ReadYamlFile("cs2pm.yaml")
 
 		if err != nil {
-			fmt.Println("Error reading plugin.yaml file:", err)
-			os.Exit(1)
+			panic(err)
 		}
 
-		for _, file := range pluginConfig.Uninstall.Files {
-			filePath := filepath.Join(dest, file)
-			fmt.Printf("Removing file %s\n", filePath)
-			os.Remove(filePath)
+		wg := &sync.WaitGroup{}
+
+		for _, config := range plugins.Plugins {
+			wg.Add(1)
+			go uninstallPlugin(&config, dest, wg)
 		}
 
-		for _, dir := range pluginConfig.Uninstall.Directories {
-			dirPath := filepath.Join(dest, dir)
-			fmt.Printf("Removing directory %s\n", dirPath)
-			os.RemoveAll(dirPath)
-		}
-
-		fmt.Printf("Uninstalling plugin %s\n", pluginConfig.Name)
+		wg.Wait()
 	},
 }
 
@@ -70,4 +59,30 @@ func init() {
 	rootCmd.AddCommand(uninstallCmd)
 
 	uninstallCmd.Flags().StringP("dir", "d", ".", "Directory to install the plugin to")
+}
+
+func uninstallPlugin(config *util.PluginConfig, dest string, wg *sync.WaitGroup) {
+	defer wg.Done()
+
+	fmt.Printf("Uninstalling plugin %s\n", config.Name)
+
+	for _, file := range config.Uninstall.Files {
+		filePath := filepath.Join(dest, file)
+		fmt.Printf("Removing file %s\n", filePath)
+		err := os.Remove(filePath)
+
+		if err != nil {
+			fmt.Printf("Error removing file %s: %s\n", filePath, err)
+		}
+	}
+
+	for _, dir := range config.Uninstall.Directories {
+		dirPath := filepath.Join(dest, dir)
+		fmt.Printf("Removing directory %s\n", dirPath)
+		err := os.RemoveAll(dirPath)
+
+		if err != nil {
+			fmt.Printf("Error removing directory %s: %s\n", dirPath, err)
+		}
+	}
 }
