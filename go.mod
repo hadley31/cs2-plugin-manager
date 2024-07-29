@@ -1,4 +1,4 @@
-module nicholashadley.dev/cs2pm
+module github.com/hadley31/cs2pm
 
 go 1.22.5
 

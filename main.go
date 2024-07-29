@@ -21,7 +21,7 @@ THE SOFTWARE.
 */
 package main
 
-import "nicholashadley.dev/cs2pm/cmd"
+import "github.com/hadley31/cs2pm/cmd"
 
 func main() {
 	cmd.Execute()
