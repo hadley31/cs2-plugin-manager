@@ -38,7 +38,7 @@ var uninstallCmd = &cobra.Command{
 	Long:  ``,
 	Run: func(cmd *cobra.Command, args []string) {
 		dest := cmd.Flag("dir").Value.String()
-		plugins, err := util.ReadYamlFile("cs2pm.yaml")
+		config, err := util.ReadConfigFile()
 
 		if err != nil {
 			panic(err)
@@ -46,7 +46,7 @@ var uninstallCmd = &cobra.Command{
 
 		wg := &sync.WaitGroup{}
 
-		for _, config := range plugins.Plugins {
+		for _, config := range config.Plugins {
 			wg.Add(1)
 			go uninstallPlugin(&config, dest, wg)
 		}

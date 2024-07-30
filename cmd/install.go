@@ -23,6 +23,7 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"sync"
 
@@ -36,9 +37,23 @@ var installCmd = &cobra.Command{
 	Short: "Installs plugins from a registry file",
 	Long:  ``,
 	Run: func(cmd *cobra.Command, args []string) {
+		if len(args) > 0 {
+			plugin, err := util.ReadPluginRegistryFile(args[0])
+			if err != nil {
+				panic(err)
+			}
+
+			err = util.AddPluginToRegistry(plugin)
+			if err != nil {
+				panic(err)
+			}
+			fmt.Printf("Added %s to plugin manifest\n", plugin.Name)
+			return
+		}
+
 		dest := cmd.Flag("dir").Value.String()
 
-		plugins, err := util.ReadYamlFile("cs2pm.yaml")
+		config, err := util.ReadConfigFile()
 
 		if err != nil {
 			panic(err)
@@ -46,9 +61,9 @@ var installCmd = &cobra.Command{
 
 		wg := &sync.WaitGroup{}
 
-		for _, config := range plugins.Plugins {
+		for _, plugin := range config.Plugins {
 			wg.Add(1)
-			installPlugin(&config, dest, wg)
+			installPlugin(&plugin, dest, wg)
 		}
 
 		wg.Wait()
@@ -61,18 +76,20 @@ func init() {
 	installCmd.Flags().StringP("dir", "d", "", "Directory to install the plugin to")
 }
 
-func installPlugin(config *util.PluginConfig, dest string, wg *sync.WaitGroup) {
+func installPlugin(plugin *util.PluginConfig, dest string, wg *sync.WaitGroup) {
 	defer wg.Done()
 
-	fmt.Printf("Installing plugin %s\n", config.Name)
+	fmt.Printf("Installing plugin %s\n", plugin.Name)
 
-	extractDir := filepath.Join(dest, config.ExtractPrefix)
+	extractDir := filepath.Join(dest, plugin.ExtractPrefix)
 
-	tempFile, err := util.DownloadPlugin(config.DownloadUrl)
+	tempFile, err := os.CreateTemp("", "cs2pm-")
+	util.DownloadFile(plugin.DownloadUrl, tempFile)
+	defer tempFile.Close()
 
 	if err != nil {
 		panic(err)
 	}
 
-	util.UnzipPlugin(tempFile, extractDir)
+	util.UnzipFile(tempFile.Name(), extractDir)
 }

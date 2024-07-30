@@ -27,8 +27,8 @@ type PluginConfig struct {
 	}
 }
 
-func ReadYamlFile(yamlFilePath string) (*PluginRegistry, error) {
-	yamlFile, err := os.ReadFile(yamlFilePath)
+func ReadConfigFile() (*PluginRegistry, error) {
+	yamlFile, err := os.ReadFile("cs2pm.yaml")
 	if err != nil {
 		return nil, err
 	}
@@ -41,25 +41,68 @@ func ReadYamlFile(yamlFilePath string) (*PluginRegistry, error) {
 	return &v, nil
 }
 
-func DownloadPlugin(url string) (string, error) {
+func ReadPluginRegistryFile(pluginName string) (*PluginConfig, error) {
+	yamlFile, err := os.ReadFile(fmt.Sprintf("registry/%s.yaml", pluginName))
+	if err != nil {
+		return nil, err
+	}
+
+	v := PluginConfig{}
+	if err := yaml.Unmarshal(yamlFile, &v); err != nil {
+		return nil, err
+	}
+
+	return &v, nil
+}
+
+func WriteConfigFile(config *PluginRegistry) error {
+	yamlFile, err := yaml.Marshal(config)
+	if err != nil {
+		return err
+	}
+
+	err = os.WriteFile("cs2pm.yaml", yamlFile, 0644)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func AddPluginToRegistry(plugin *PluginConfig) error {
+	config, err := ReadConfigFile()
+	if err != nil {
+		return err
+	}
+
+	for _, p := range config.Plugins {
+		if p.Name == plugin.Name {
+			return fmt.Errorf("plugin %s already exists in the registry", plugin.Name)
+		}
+	}
+
+	config.Plugins = append(config.Plugins, *plugin)
+
+	err = WriteConfigFile(config)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func DownloadFile(url string, out *os.File) (*os.File, error) {
 	// Download the plugin from the URL
 	resp, err := http.Get(url)
 	if err != nil {
 		fmt.Println("Error downloading plugin:", err)
-		return "", err
+		return nil, err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("error downloading plugin from %s. Status code: %s", url, resp.Status)
+		return nil, fmt.Errorf("error downloading plugin from %s. Status code: %s", url, resp.Status)
 	}
-
-	// Create the file
-	out, err := os.CreateTemp("", "cs2pm-plugin-")
-	if err != nil {
-		fmt.Printf("err: %s", err)
-	}
-	defer out.Close()
 
 	// Write the body to file
 	_, err = io.Copy(out, resp.Body)
@@ -67,12 +110,12 @@ func DownloadPlugin(url string) (string, error) {
 		fmt.Printf("err: %s", err)
 	}
 
-	return out.Name(), nil
+	return out, nil
 }
 
-func UnzipPlugin(tempFilePath string, dest string) {
+func UnzipFile(source string, dest string) {
 	// Unzip the plugin
-	archive, err := zip.OpenReader(tempFilePath)
+	archive, err := zip.OpenReader(source)
 	if err != nil {
 		panic(err)
 	}
