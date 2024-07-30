@@ -9,12 +9,12 @@ Counter-Strike 2 Plugin Manager is a tool for easily installing and uninstalling
 ```yaml
 plugins:
   - name: CS2-SimpleAdmin
-  description: Simple Admin Plugin
-  downloadUrl: https://github.com/daffyyyy/CS2-SimpleAdmin/releases/download/build-230/CS2-SimpleAdmin.zip
-  extractPrefix: addons/counterstrikesharp/plugins
-  uninstall:
+    description: Simple Admin Plugin
+    downloadUrl: https://github.com/daffyyyy/CS2-SimpleAdmin/releases/download/build-230/CS2-SimpleAdmin.zip
+    extractPrefix: addons/counterstrikesharp/plugins
+    uninstall:
       directories:
-      - addons/counterstrikesharp/plugins/CS2-SimpleAdmin
+        - addons/counterstrikesharp/plugins/CS2-SimpleAdmin
 ```
 
 ### Install plugins from the manifest file
