@@ -40,6 +40,20 @@ var uninstallCmd = &cobra.Command{
 		dest := cmd.Flag("dir").Value.String()
 		config, err := util.ReadConfigFile()
 
+		if len(args) > 0 {
+			plugin, err := util.ReadPluginRegistryFile(args[0])
+			if err != nil {
+				panic(err)
+			}
+
+			err = util.RemovePluginFromRegistry(plugin.Name)
+			if err != nil {
+				panic(err)
+			}
+			fmt.Printf("Added %s to plugin manifest\n", plugin.Name)
+			return
+		}
+
 		if err != nil {
 			panic(err)
 		}
