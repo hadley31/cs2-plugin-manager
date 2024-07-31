@@ -7,6 +7,18 @@ import (
 	"github.com/go-git/go-git/v5"
 )
 
+const defaultRegistryRepoUrl = "https://github.com/hadley31/cs2pm.git"
+
+func getRegistryRepoUrl() string {
+	cs2pmUrl := os.Getenv("CS2PM_REGISTRY_REPO_URL")
+
+	if cs2pmUrl != "" {
+		return cs2pmUrl
+	}
+
+	return defaultRegistryRepoUrl
+}
+
 func GetLocalRegistryRepoPath() string {
 	cs2pmPath := os.Getenv("CS2PM_REGISTRY_PATH")
 
@@ -25,7 +37,7 @@ func GetLocalRegistryRepoPath() string {
 func CloneRegistryRepo() *git.Repository {
 	cloneDir := GetLocalRegistryRepoPath()
 	repo, err := git.PlainClone(cloneDir, false, &git.CloneOptions{
-		URL:      "https://github.com/hadley31/cs2pm.git",
+		URL:      getRegistryRepoUrl(),
 		Progress: os.Stdout,
 	})
 

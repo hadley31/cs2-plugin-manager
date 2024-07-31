@@ -53,7 +53,7 @@ var installCmd = &cobra.Command{
 
 		dest := cmd.Flag("dir").Value.String()
 
-		config, err := util.ReadConfigFile()
+		config, err := util.ReadManifestFile()
 
 		if err != nil {
 			panic(err)

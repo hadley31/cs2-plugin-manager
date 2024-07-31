@@ -38,7 +38,7 @@ var uninstallCmd = &cobra.Command{
 	Long:  ``,
 	Run: func(cmd *cobra.Command, args []string) {
 		dest := cmd.Flag("dir").Value.String()
-		config, err := util.ReadConfigFile()
+		config, err := util.ReadManifestFile()
 
 		if len(args) > 0 {
 			plugin, err := util.ReadPluginRegistryFile(args[0])
